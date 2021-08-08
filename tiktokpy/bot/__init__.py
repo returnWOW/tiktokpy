@@ -82,8 +82,8 @@ class TikTokPy:
         username = f"@{username.lstrip('@')}"
         await User(client=self.client).unfollow(username=username)
 
-    async def login_session(self):
-        await Login(client=self.client).manual_login()
+    async def login_session(self, username, password):
+        await Login(client=self.client).manual_login(username, password)
 
     async def user_feed(self, username: str, amount: int = 50) -> List[FeedItem]:
         username = f"@{username.lstrip('@')}"

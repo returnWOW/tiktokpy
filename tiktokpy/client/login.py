@@ -1,5 +1,6 @@
 import json
 
+import time
 from dynaconf import loaders, settings
 
 from tiktokpy.client import Client
@@ -11,7 +12,7 @@ class Login:
     def __init__(self, client) -> None:
         self.client = client
 
-    async def manual_login(self):
+    async def manual_login(self, username, password):
         # client = await Client.create(headless=False)
         client = self.client
         page = await client.new_page()
@@ -23,28 +24,45 @@ class Login:
 
         username = sub_title = None
 
-        while not all((username, sub_title)):
-            await page.hover(".menu-right .profile")
+        use_phone = await page.Jx('//div[contains(text(), "使用电话")]')
+        await use_phone.click()
 
-            await page.waitFor(".profile-actions > li:first-child")
-            # going to "View profile" page
-            await page.click(".profile-actions > li:first-child")
+        time.sleep(0.5)
 
-            try:
-                await page.waitForSelector(".share-title", options={"timeout": 10_000})
-            except Exception:
-                continue
+        use_pw = await page.Jx('//a[contains(text(), "使用密码登陆")]')
+        await use_pw.click()
 
-            username = await page.Jeval(
-                ".share-title",
-                pageFunction="element => element.textContent",
-            )
-            username = username.strip()
+        time.sleep(0.5)
 
-            sub_title = await page.Jeval(
-                ".share-sub-title",
-                pageFunction="element => element.textContent",
-            )
+        input_uname = await page.Jx('//input[@autocomplete="reg_email__"]')
+        await input_uname.send_keys(username)
+
+        input_pw = await page.Jx('//input[@type="password"]')
+        await input_pw.send_keys(password)
+
+        # while not all((username, sub_title)):
+        #     await page.hover(".menu-right .profile")
+
+        #     await page.waitFor(".profile-actions > li:first-child")
+        #     # going to "View profile" page
+        #     await page.click(".profile-actions > li:first-child")
+
+        #     try:
+        #         await page.waitForSelector(".share-title", options={"timeout": 10_000})
+        #     except Exception:
+        #         continue
+
+        #     username = await page.Jeval(
+        #         ".share-title",
+        #         pageFunction="element => element.textContent",
+        #     )
+        #     username = username.strip()
+
+        #     sub_title = await page.Jeval(
+        #         ".share-sub-title",
+        #         pageFunction="element => element.textContent",
+        #     )
+        input("点击登陆")
 
         logger.info(f"🔑 Logged as @{username} aka {sub_title}")
 
