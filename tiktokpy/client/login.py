@@ -8,8 +8,12 @@ from tiktokpy.utils.settings import BASE_SETTINGS
 
 
 class Login:
+    def __init__(self, client) -> None:
+        self.client = client
+
     async def manual_login(self):
-        client = await Client.create(headless=False)
+        # client = await Client.create(headless=False)
+        client = self.client
         page = await client.new_page()
 
         await client.stealth(page)
