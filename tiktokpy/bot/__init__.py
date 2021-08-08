@@ -96,7 +96,7 @@ class TikTokPy:
         return feed.__root__
 
     async def init_bot(self):
-        self.client: Client = await Client.create(headless=True)
+        self.client: Client = await Client.create(headless=False)
 
     @classmethod
     async def create(cls):

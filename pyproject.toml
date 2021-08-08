@@ -9,8 +9,8 @@ authors = ["Evgeny Kemerov <eskemerov@gmail.com>"]
 readme = "README.md"
 include = ["LICENSE"]
 
-repository = "https://github.com/sudoguy/tiktokpy/"
-homepage = "https://github.com/sudoguy/tiktokpy/"
+repository = "https://github.com/returnWOW/tiktokpy"
+homepage = "https://github.com/returnWOW/tiktokpy"
 
 keywords = ["tiktok", "bot", "api", "wrapper", "tiktokbot", "tiktokpy", "webapi", "marketing"]
 
