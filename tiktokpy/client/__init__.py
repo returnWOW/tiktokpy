@@ -37,6 +37,7 @@ class Client:
             #     "height": 1080,
             # },
             "args": [
+                '--disable-extensions',
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
