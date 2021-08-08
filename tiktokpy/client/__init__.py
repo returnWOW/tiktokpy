@@ -21,6 +21,7 @@ from pyppeteer_stealth import (
 from tiktokpy.utils.client import block_resources_and_sentry
 from tiktokpy.utils.logger import logger
 
+user_dir = 'userdata'
 
 class Client:
     def __init__(self):
@@ -31,12 +32,17 @@ class Client:
     async def init_browser(self, headless: bool):
         params = {
             "headless": headless,
+            "setDefaultViewport": {
+                "width": 1920,
+                "height": 1080,
+            },
             "args": [
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
                 "--disable-web-security",
             ],
+            "userDataDir": user_dir
         }
 
         self.browser: Browser = await launch(**params)
