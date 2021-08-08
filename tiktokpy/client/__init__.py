@@ -32,10 +32,10 @@ class Client:
     async def init_browser(self, headless: bool):
         params = {
             "headless": headless,
-            "setDefaultViewport": {
-                "width": 1920,
-                "height": 1080,
-            },
+            # "setDefaultViewport": {
+            #     "width": 1920,
+            #     "height": 1080,
+            # },
             "args": [
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
