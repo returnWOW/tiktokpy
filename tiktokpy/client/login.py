@@ -10,26 +10,28 @@ from tiktokpy.utils.settings import BASE_SETTINGS
 
 class Login:
     def __init__(self, client) -> None:
-        self.client = client
+        self.client: Client = client
 
     async def manual_login(self, username, password):
         # client = await Client.create(headless=False)
-        client = self.client
+        client: Client = self.client
         page = await client.new_page()
 
-        await client.stealth(page)
+        # await client.stealth(page)
 
         await client.goto("/login", page)
-        await page.waitForSelector(".menu-right .profile", options={"timeout": 0})
+        # await page.waitForXPath('//div[contains(text(), "TikTok")]', options={"timeout": 0})
+        # use_phone = await page.Jx('//div[contains(text(), "使用电话")]')
 
-        username = sub_title = None
+        # username = sub_title = None
 
-        use_phone = await page.Jx('//div[contains(text(), "使用电话")]')
+        print("点击电话按钮")
+        use_phone = await page.Jx('//div[contains(text(), "使用者")]')
         await use_phone.click()
 
         time.sleep(0.5)
 
-        use_pw = await page.Jx('//a[contains(text(), "使用密码登陆")]')
+        use_pw = await page.Jx('//a[contains(text(), "使用密")]')
         await use_pw.click()
 
         time.sleep(0.5)

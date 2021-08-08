@@ -37,6 +37,7 @@ class Client:
             #     "height": 1080,
             # },
             "args": [
+                "--proxy-server=http://127.0.0.1:1080",
                 '--disable-extensions',
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
