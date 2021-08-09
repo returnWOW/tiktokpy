@@ -18,7 +18,7 @@ from .version import __version__
 
 
 class TikTokPy:
-    def __init__(self, settings_path: Optional[str] = None, proxy: Optional[str] = "http://127.0.0.1:1080"):
+    def __init__(self, settings_path: Optional[str] = None, proxy: Optional[str] = "http://192.168.1.17:1080"):
         init_logger()
         self.started_at = datetime.now()
         self.client: Client

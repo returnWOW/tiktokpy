@@ -26,7 +26,8 @@ async def catch_response_and_store(response, list_queue):
         cnt += 1
         logger.debug("get item list: {}".format(cnt))
         logger.debug("await: {}".format(cnt))
-        data = await response.json()
+        data = await response.text()
+        data = json.loads(data)
 
         print(data)
         cnt_elem = 0
