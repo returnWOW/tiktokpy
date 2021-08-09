@@ -2,6 +2,7 @@ import json
 
 import time
 from dynaconf import loaders, settings
+import pdb
 
 from tiktokpy.client import Client
 from tiktokpy.utils.logger import logger
@@ -21,59 +22,55 @@ class Login:
 
         await client.goto("/login", page)
         # await page.waitForXPath('//div[contains(text(), "TikTok")]', options={"timeout": 0})
-        # use_phone = await page.Jx('//div[contains(text(), "使用电话")]')
+        time.sleep(5)
+        flag = False
+        try:
+            print("检查登陆")
+            await page.xpath('//input[@autocomplete="reg_email__"]')
+            print("未登录")
+            flag = True
+        except Exception as e:
+            logger.debug(e)
+            flag = False 
 
-        # username = sub_title = None
+        time.sleep(5)
 
-        print("点击电话按钮")
-        use_phone = await page.Jx('//div[contains(text(), "使用者")]')
-        await use_phone.click()
+        if flag:
+            print("点击电话按钮")
+            use_phone = await page.Jx('//div[contains(text(), "使用者")]')
+            await use_phone[0].click()
 
-        time.sleep(0.5)
+            time.sleep(1)
 
-        use_pw = await page.Jx('//a[contains(text(), "使用密")]')
-        await use_pw.click()
+            use_pw = await page.Jx('//a[contains(text(), "使用密")]')
+            print(use_pw)
+            await use_pw[0].click()
 
-        time.sleep(0.5)
+            time.sleep(1)
 
-        input_uname = await page.Jx('//input[@autocomplete="reg_email__"]')
-        await input_uname.send_keys(username)
+            # await page.type('//input[@autocomplete="reg_email__"]', username, {'delay': 5})
+            input_uname = await page.Jx('//input[@autocomplete="reg_email__"]')
+            await input_uname[0].click()
+            await page.keyboard.type(username)
 
-        input_pw = await page.Jx('//input[@type="password"]')
-        await input_pw.send_keys(password)
+            time.sleep(1)
+            input_pw = await page.Jx('//input[@type="password"]')
+            await input_pw[0].click()
+            await page.keyboard.type(password)
 
-        # while not all((username, sub_title)):
-        #     await page.hover(".menu-right .profile")
+            input("点击登陆")
 
-        #     await page.waitFor(".profile-actions > li:first-child")
-        #     # going to "View profile" page
-        #     await page.click(".profile-actions > li:first-child")
+            logger.info(f"🔑 Logged as @{username}")
 
-        #     try:
-        #         await page.waitForSelector(".share-title", options={"timeout": 10_000})
-        #     except Exception:
-        #         continue
-
-        #     username = await page.Jeval(
-        #         ".share-title",
-        #         pageFunction="element => element.textContent",
-        #     )
-        #     username = username.strip()
-
-        #     sub_title = await page.Jeval(
-        #         ".share-sub-title",
-        #         pageFunction="element => element.textContent",
-        #     )
-        input("点击登陆")
-
-        logger.info(f"🔑 Logged as @{username} aka {sub_title}")
+            
+        else:
+            print("也许已经登陆，无需重复登陆")
 
         cookies = await page.cookies()
-
+        print(cookies)
+        logger.debug(cookies)
         loaders.write(
             f"{settings.HOME_DIR}/settings.toml",
             {**BASE_SETTINGS, **{"COOKIES": json.dumps(cookies), "USERNAME": username}},
             env="default",
         )
-
-        await client.browser.close()

@@ -18,10 +18,11 @@ from .version import __version__
 
 
 class TikTokPy:
-    def __init__(self, settings_path: Optional[str] = None):
+    def __init__(self, settings_path: Optional[str] = None, proxy: Optional[str] = "http://127.0.0.1:1080"):
         init_logger()
         self.started_at = datetime.now()
         self.client: Client
+        self.proxy = proxy
 
         logger.info("🥳 TikTokPy initialized. Version: {}", __version__)
 
@@ -96,7 +97,7 @@ class TikTokPy:
         return feed.__root__
 
     async def init_bot(self):
-        self.client: Client = await Client.create(headless=False)
+        self.client: Client = await Client.create(headless=False, proxy=self.proxy)
 
     @classmethod
     async def create(cls):

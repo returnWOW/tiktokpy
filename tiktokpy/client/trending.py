@@ -1,4 +1,5 @@
 import asyncio
+import time
 from typing import List
 
 import pyppeteer
@@ -15,21 +16,26 @@ class Trending:
 
     async def feed(self, amount: int, lang: str = "en"):
         page = await self.client.new_page(blocked_resources=["media", "image", "font"])
+        await page.setCacheEnabled(False)
 
         logger.debug('📨 Request "Trending" page')
 
         result: List[dict] = []
+        list_queue: asyncio.Queue = asyncio.Queue(maxsize=100)
 
         page.on(
             "response",
-            lambda res: asyncio.create_task(catch_response_and_store(res, result)),
+            lambda res: asyncio.create_task(catch_response_and_store(res, result))
         )
+
+        time.sleep(3)
+
         _ = await self.client.goto(
             "/foryou",
             query_params={"lang": lang},
             page=page,
-            options={"waitUntil": "networkidle0"},
         )
+        time.sleep(2)
         logger.debug('📭 Got response from "Trending" page')
 
         pbar = tqdm(total=amount, desc=f"📈 Getting trending {lang.upper()}")
@@ -37,7 +43,17 @@ class Trending:
         pbar.refresh()
 
         while len(result) < amount:
+            print("循环获取数据")
 
+            # while not list_queue.empty():
+            #     print("获取到数据，添加到result")
+            #     elem = await list_queue.get()
+            #     result.append(elem)
+
+            #     if len(result) >= amount:
+            #         print("get all amount data")
+            #         break
+            
             logger.debug("🖱 Trying to scroll to last video item")
 
             last_child_selector = 'div[class*="-ItemContainer"]:last-child'

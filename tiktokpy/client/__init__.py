@@ -29,7 +29,7 @@ class Client:
 
         self.cookies = json.loads(settings.get("COOKIES", "[]"))
 
-    async def init_browser(self, headless: bool):
+    async def init_browser(self, headless: bool, proxy=None):
         params = {
             "headless": headless,
             # "setDefaultViewport": {
@@ -37,7 +37,6 @@ class Client:
             #     "height": 1080,
             # },
             "args": [
-                "--proxy-server=http://127.0.0.1:1080",
                 '--disable-extensions',
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
@@ -46,6 +45,8 @@ class Client:
             ],
             "userDataDir": user_dir
         }
+        if proxy:
+            params["args"].append("--proxy-server=" + proxy)
 
         self.browser: Browser = await launch(**params)
         logger.debug(f"🎉 Browser launched. Options: {params}")
@@ -100,8 +101,8 @@ class Client:
         await page.screenshot({"path": path})
 
     @classmethod
-    async def create(cls, headless: bool = True):
+    async def create(cls, headless: bool = True, proxy=None):
         self = Client()
-        await self.init_browser(headless=headless)
+        await self.init_browser(headless=headless, proxy=proxy)
 
         return self
