@@ -19,4 +19,4 @@ def init_logger():
     )
     logger.add("tiktokpy.log", rotation="500 MB", level=logging.DEBUG, format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
         "<level>{level}</level> | "
-        "<level>{message}</level>")
+        "<level>{message}</level>", encoding="utf-8", errors="ignore")

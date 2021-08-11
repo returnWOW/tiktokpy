@@ -12,16 +12,17 @@ from tiktokpy.utils.logger import logger
 
 class Trending:
     def __init__(self, client: Client):
-        self.client = client
+        self.client: Client = client
 
     async def feed(self, amount: int, lang: str = "en"):
         page = await self.client.new_page(blocked_resources=["media", "image", "font"])
-        await page.setCacheEnabled(False)
+        self.client.delete_cache_files()
+        # await page.setCacheEnabled(False)
 
         logger.debug('📨 Request "Trending" page')
 
         result: List[dict] = []
-        list_queue: asyncio.Queue = asyncio.Queue(maxsize=100)
+        # list_queue: asyncio.Queue = asyncio.Queue(maxsize=100)
 
         page.on(
             "response",
@@ -44,16 +45,8 @@ class Trending:
 
         while len(result) < amount:
             print("循环获取数据")
+            # time.sleep(1000)
 
-            # while not list_queue.empty():
-            #     print("获取到数据，添加到result")
-            #     elem = await list_queue.get()
-            #     result.append(elem)
-
-            #     if len(result) >= amount:
-            #         print("get all amount data")
-            #         break
-            
             logger.debug("🖱 Trying to scroll to last video item")
 
             last_child_selector = 'div[class*="-ItemContainer"]:last-child'

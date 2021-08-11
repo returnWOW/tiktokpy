@@ -1,3 +1,4 @@
+import os
 import asyncio
 import json
 from pathlib import Path
@@ -22,12 +23,27 @@ from tiktokpy.utils.client import block_resources_and_sentry
 from tiktokpy.utils.logger import logger
 
 user_dir = 'userdata'
+# delete file to clear cache, in this can skip hang on await response.json()
+cache_dir = os.path.join(".", user_dir,"Default", "Service Worker", "ScriptCache")
 
 class Client:
     def __init__(self):
         self.base_url = settings.BASE_URL
 
         self.cookies = json.loads(settings.get("COOKIES", "[]"))
+        self.delete_cache_files()
+
+    def delete_cache_files(self):
+        if os.path.exists(cache_dir):
+            logger.info("delete cache dir: {}".format(cache_dir))
+            cnt = 0
+            for root, _, files in os.walk(cache_dir):
+                for file in files:
+                    cnt += 1
+                    os.unlink(os.path.join(root, file))
+            logger.info("delete files: {}".format(cnt))
+        else:
+            logger.warning("path not exists: {}".format(cache_dir))
 
     async def init_browser(self, headless: bool, proxy=None):
         params = {
@@ -39,10 +55,14 @@ class Client:
             "args": [
                 '--disable-extensions',
                 "--no-sandbox",
+                '--mute-audio',
+                '--disable-gpu',
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
                 "--disable-web-security",
             ],
+            "autoClose": False,
+            'dumpio': True,
             "userDataDir": user_dir
         }
         if proxy:
@@ -62,6 +82,7 @@ class Client:
 
     async def new_page(self, blocked_resources: Optional[List[str]] = None) -> Page:
         page: Page = await self.browser.newPage()
+        await page.setCacheEnabled(False)
 
         # set stealth mode for tiktok
         await self.stealth(page)
