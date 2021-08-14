@@ -14,8 +14,10 @@ class Trending:
     def __init__(self, client: Client):
         self.client: Client = client
 
-    async def feed(self, amount: int, lang: str = "en"):
-        page = await self.client.new_page(blocked_resources=["media", "image", "font"])
+    async def feed(self, amount: int, lang: str = "en", page=None):
+        if not page:
+            page = await self.client.new_page(blocked_resources=["media", "image", "font"])
+            
         self.client.delete_cache_files()
         # await page.setCacheEnabled(False)
 
@@ -79,6 +81,6 @@ class Trending:
             logger.debug(f"🎉 Cleaned {len(elements) - 1} items from page")
             await page.waitFor(30_000)
 
-        await page.close()
+        # await page.close()
         pbar.close()
-        return result[:amount]
+        return result[:amount], page

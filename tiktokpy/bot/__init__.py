@@ -27,6 +27,7 @@ class TikTokPy:
         logger.info("🥳 TikTokPy initialized. Version: {}", __version__)
 
         load_or_create_settings(path=settings_path)
+        self.one_page = None
 
         if settings.get("COOKIES") and settings.get("USERNAME"):
             logger.info(f"✅ Used cookies of @{settings.USERNAME}")
@@ -56,21 +57,23 @@ class TikTokPy:
 
     async def trending(self, amount: int = 50, lang: str = "en") -> List[FeedItem]:
         logger.info("📈 Getting trending items")
-        items = await Trending(client=self.client).feed(amount=amount, lang=lang)
+        items = await Trending(client=self.client).feed(amount=amount, lang=lang, page=self.one_page)
 
         logger.info(f"📹 Found {len(items)} videos")
+        print(items)
         _trending = FeedItems(__root__=items)
 
         return _trending.__root__
 
     async def follow(self, username: str):
         username = f"@{username.lstrip('@')}"
-        await User(client=self.client).follow(username=username)
+        await User(client=self.client).follow(username=username, page=self.one_page)
 
     async def like(self, feed_item: FeedItem):
         await User(client=self.client).like(
             username=feed_item.author.username,
             video_id=feed_item.id,
+            page=self.one_page
         )
 
     async def unlike(self, feed_item: FeedItem):
@@ -89,7 +92,7 @@ class TikTokPy:
     async def user_feed(self, username: str, amount: int = 50) -> List[FeedItem]:
         username = f"@{username.lstrip('@')}"
         logger.info(f"📈 Getting {username} feed")
-        items = await User(client=self.client).feed(username=username, amount=amount)
+        items = await User(client=self.client).feed(username=username, amount=amount, page=self.one_page)
 
         logger.info(f"📹 Found {len(items)} videos")
         feed = FeedItems(__root__=items)
@@ -98,6 +101,8 @@ class TikTokPy:
 
     async def init_bot(self):
         self.client: Client = await Client.create(headless=False, proxy=self.proxy)
+        if not self.one_page:
+            self.one_page = await self.client.new_page(blocked_resources=["media", "image", "font"])
 
     @classmethod
     async def create(cls):

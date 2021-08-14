@@ -13,8 +13,10 @@ class User:
     def __init__(self, client: Client):
         self.client = client
 
-    async def like(self, username: str, video_id: str):
-        page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
+    async def like(self, username: str, video_id: str, page=None):
+        if not page:
+            page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
+
         logger.debug(f"👥 Like video id {video_id} of @{username}")
 
         like_info_queue: asyncio.Queue = asyncio.Queue(maxsize=1)
@@ -91,8 +93,10 @@ class User:
 
         await page.close()
 
-    async def follow(self, username: str):
-        page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
+    async def follow(self, username: str, page=None):
+        if not page:
+            page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
+
         logger.debug(f"👥 Follow {username}")
 
         follow_info_queue: asyncio.Queue = asyncio.Queue(maxsize=1)
@@ -173,8 +177,10 @@ class User:
 
         await page.close()
 
-    async def feed(self, username: str, amount: int):
-        page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
+    async def feed(self, username: str, amount: int, page=None):
+        if not page:
+            page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
+            
         logger.debug(f"📨 Request {username} feed")
 
         result: List[dict] = []
