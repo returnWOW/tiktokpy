@@ -1,3 +1,4 @@
+import os
 import typing
 from datetime import datetime
 from types import TracebackType
@@ -7,6 +8,7 @@ import humanize
 from dynaconf import settings
 
 from tiktokpy.client import Client
+from tiktokpy.client import user
 from tiktokpy.client.login import Login
 from tiktokpy.client.trending import Trending
 from tiktokpy.client.user import User
@@ -18,11 +20,14 @@ from .version import __version__
 
 
 class TikTokPy:
-    def __init__(self, settings_path: Optional[str] = None, proxy: Optional[str] = "http://192.168.1.17:1080"):
+    def __init__(self, settings_path: Optional[str] = None, proxy: Optional[str] = "http://192.168.1.17:1080", username=None, pw=None):
         init_logger()
         self.started_at = datetime.now()
         self.client: Client
         self.proxy = proxy
+        self.username = username
+        self.pw = pw
+        self.userdata_dir = "userdata"
 
         logger.info("🥳 TikTokPy initialized. Version: {}", __version__)
 
@@ -60,10 +65,18 @@ class TikTokPy:
         items = await Trending(client=self.client).feed(amount=amount, lang=lang, page=self.one_page)
 
         logger.info(f"📹 Found {len(items)} videos")
-        print(items)
+        # print()
         _trending = FeedItems(__root__=items)
 
         return _trending.__root__
+
+    async def get_comments(self, username: str, media_id: int, amount: int = 50) -> List:
+        logger.info("📈 Getting media {media_id} comments items")
+        items = await User(client=self.client).get_comments(username, media_id, amount=amount, page=self.one_page)
+
+        logger.info(f"📹 Found {len(items)} comments")
+
+        return items
 
     async def follow(self, username: str):
         username = f"@{username.lstrip('@')}"
@@ -86,8 +99,13 @@ class TikTokPy:
         username = f"@{username.lstrip('@')}"
         await User(client=self.client).unfollow(username=username)
 
-    async def login_session(self, username, password):
-        await Login(client=self.client).manual_login(username, password)
+    async def login_session(self):
+        if not self.username or not self.pw:
+            logger.error("Username or pw is none")
+            return False
+
+        await Login(client=self.client).manual_login(self.username, self.pw)
+        return True
 
     async def user_feed(self, username: str, amount: int = 50) -> List[FeedItem]:
         username = f"@{username.lstrip('@')}"
@@ -100,9 +118,13 @@ class TikTokPy:
         return feed.__root__
 
     async def init_bot(self):
-        self.client: Client = await Client.create(headless=False, proxy=self.proxy)
-        if not self.one_page:
-            self.one_page = await self.client.new_page(blocked_resources=["media", "image", "font"])
+        if not os.path.exists(self.userdata_dir):
+            os.mkdir(self.userdata_dir)
+            
+        userdata_dir = os.path.join(self.userdata_dir, self.username)
+        self.client: Client = await Client.create(headless=False, proxy=self.proxy, userdata=userdata_dir)
+        # if not self.one_page:
+            # self.one_page = await self.client.new_page(blocked_resources=["media", "image", "font"])
 
     @classmethod
     async def create(cls):

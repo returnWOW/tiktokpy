@@ -22,36 +22,44 @@ from pyppeteer_stealth import (
 from tiktokpy.utils.client import block_resources_and_sentry
 from tiktokpy.utils.logger import logger
 
-user_dir = 'userdata'
-# delete file to clear cache, in this can skip hang on await response.json()
-cache_dir = os.path.join(".", user_dir,"Default", "Service Worker", "ScriptCache")
 
 class Client:
-    def __init__(self):
+    def __init__(self, userdata="userdata"):
         self.base_url = settings.BASE_URL
+
+        self.user_dir = userdata
+        # delete file to clear cache, in this can skip hang on await response.json()
+        self.cache_dir = os.path.join(".", self.user_dir, "Default", "Service Worker", "ScriptCache")
+        self.cache_dir2 = os.path.join(".", self.user_dir, "Default", "Service Worker", "CacheStorage")
+        self.cache_dir3 = os.path.join(".", self.user_dir, "Default", "Service Worker", "Database")
+
 
         self.cookies = json.loads(settings.get("COOKIES", "[]"))
         self.delete_cache_files()
 
     def delete_cache_files(self):
-        if os.path.exists(cache_dir):
-            logger.info("delete cache dir: {}".format(cache_dir))
-            cnt = 0
-            for root, _, files in os.walk(cache_dir):
-                for file in files:
-                    cnt += 1
-                    os.unlink(os.path.join(root, file))
-            logger.info("delete files: {}".format(cnt))
-        else:
-            logger.warning("path not exists: {}".format(cache_dir))
+        for p in [self.cache_dir, self.cache_dir2, self.cache_dir3]:
+            if os.path.exists(p):
+                logger.info("delete cache dir: {}".format(p))
+                cnt = 0
+                for root, _, files in os.walk(p):
+                    for file in files:
+                        cnt += 1
+                        try:
+                            os.unlink(os.path.join(root, file))
+                        except PermissionError:
+                            continue
+                logger.info("delete files: {}".format(cnt))
+            else:
+                logger.warning("path not exists: {}".format(p))
 
     async def init_browser(self, headless: bool, proxy=None):
         params = {
             "headless": headless,
-            # "setDefaultViewport": {
-            #     "width": 1920,
-            #     "height": 1080,
-            # },
+            "setDefaultViewport": {
+                "width": 1920,
+                "height": 1080,
+            },
             "args": [
                 '--disable-extensions',
                 "--no-sandbox",
@@ -63,7 +71,7 @@ class Client:
             ],
             "autoClose": False,
             'dumpio': True,
-            "userDataDir": user_dir
+            "userDataDir": self.user_dir
         }
         if proxy:
             params["args"].append("--proxy-server=" + proxy)
@@ -122,8 +130,8 @@ class Client:
         await page.screenshot({"path": path})
 
     @classmethod
-    async def create(cls, headless: bool = True, proxy=None):
-        self = Client()
+    async def create(cls, headless: bool = True, proxy=None, userdata="userdata"):
+        self = Client(userdata)
         await self.init_browser(headless=headless, proxy=proxy)
 
         return self

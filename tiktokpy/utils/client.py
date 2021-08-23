@@ -20,23 +20,26 @@ async def block_resources_and_sentry(request, types: List[str]):
 
 
 cnt = 0
-async def catch_response_and_store(res, list_queue):
+async def catch_response_and_store(res, list_queue, url_str="/item_list"):
     global cnt
     url = res.url
-    if "/item_list" in url:
+    if url_str in url:
         cnt += 1
-        logger.debug("get item list: {} {}".format(cnt, url))
+        print("get item list: {} {}".format(cnt, url))
         # logger.debug("await: {}".format(cnt))
-        data = await res.json()
+        data = await res.text()
         # logger.debug("data: {}".format(data))
-        # data = json.loads(data)
+        data = json.loads(data)
 
         # logger.debug("data_json: {}".format(data))
         cnt_elem = 0
         for item in data["itemList"]:
             cnt_elem += 1
             list_queue.append(item)
-        logger.debug(f"🛒 Collected {len(data['items'])} items. Total: {cnt_elem}")
+        print(f"🛒 Collected {len(data['items'])} items. Total: {cnt_elem}")
+    else:
+        # print("other url: {}".format(url))\
+        pass
 
 
 async def catch_response_info(response, queue, url: str):

@@ -1,6 +1,7 @@
 import asyncio
 from typing import List
 
+import pyppeteer
 from pyppeteer.page import Page
 from tqdm import tqdm
 
@@ -8,12 +9,19 @@ from tiktokpy.client import Client
 from tiktokpy.utils.client import catch_response_and_store, catch_response_info
 from tiktokpy.utils.logger import logger
 
+import re
+
+pattern_comments = re.compile(r'<div .*? comment-content .*?"><a href="/@(.*?)\?.*?".*?username">(.*?)</span></a><p class=".*? comment-text"><span class=".*?">(.*?)</span>', re.S)
+
+# <div .*? comment-content .*?"><a href="/@(.*?)\?.*?" .*?username">(.*?)</span></a><p class=".*? comment-text"><span class=".*?">(.*?)</span>
+
 
 class User:
     def __init__(self, client: Client):
         self.client = client
 
     async def like(self, username: str, video_id: str, page=None):
+        self.client.delete_cache_files()
         if not page:
             page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
 
@@ -94,19 +102,20 @@ class User:
         await page.close()
 
     async def follow(self, username: str, page=None):
+        self.client.delete_cache_files()
         if not page:
             page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
 
         logger.debug(f"👥 Follow {username}")
 
-        follow_info_queue: asyncio.Queue = asyncio.Queue(maxsize=1)
+        # follow_info_queue: asyncio.Queue = asyncio.Queue(maxsize=10)
 
-        page.on(
-            "response",
-            lambda res: asyncio.create_task(
-                catch_response_info(res, follow_info_queue, "/commit/follow/user"),
-            ),
-        )
+        # page.on(
+        #     "response",
+        #     lambda res: asyncio.create_task(
+        #         catch_response_info(res, follow_info_queue, "/commit/follow/user"),
+        #     ),
+        # )
 
         logger.info(f"🧭 Going to {username}'s page for following")
 
@@ -121,18 +130,19 @@ class User:
             pageFunction="element => element.textContent",
         )
 
-        if follow_title.lower() != "follow":
+        logger.debug("follow title: |{}|".format(follow_title))
+        if follow_title.lower() not in ("follow", "关注", "關註", "關注"):
             logger.info(f"😏 {username} already followed")
             return
 
         await page.click(".follow-button")
 
-        follow_info = await follow_info_queue.get()
+        # follow_info = await follow_info_queue.get()
 
-        if follow_info["status_code"] == 0:
-            logger.info(f"➕ {username} followed")
-        else:
-            logger.warning(f"⚠️  {username} probably not followed")
+        # if follow_info["status_code"] == 0:
+        #     logger.info(f"➕ {username} followed")
+        # else:
+        #     logger.warning(f"⚠️  {username} probably not followed")
 
         await page.close()
 
@@ -178,16 +188,17 @@ class User:
         await page.close()
 
     async def feed(self, username: str, amount: int, page=None):
+        self.client.delete_cache_files()
         if not page:
             page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
-            
+
         logger.debug(f"📨 Request {username} feed")
 
         result: List[dict] = []
 
         page.on(
             "response",
-            lambda res: asyncio.create_task(catch_response_and_store(res, result)),
+            lambda res: asyncio.create_task(catch_response_and_store(res, result, "/post/item_list/")),
         )
 
         _ = await self.client.goto(f"/{username}", page=page, options={"waitUntil": "networkidle0"})
@@ -210,6 +221,7 @@ class User:
                     .scrollIntoView();
             """,
             )
+            
             await page.waitFor(1_000)
 
             elements = await page.JJ(".video-feed-item")
@@ -243,6 +255,100 @@ class User:
                 pageFunction="(elements) => elements.forEach(el => el.remove())",
             )
             logger.debug(f"🎉 Cleaned {len(elements) - 1} items from page")
+            await page.waitFor(30_000)
+
+        await page.close()
+        pbar.close()
+        return result[:amount]
+
+    async def get_comments(self, username: str, media_id: int, amount: int, page=None):
+        self.client.delete_cache_files()
+        if not page:
+            page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
+        logger.debug(f"📨 Request {username} feed")
+
+        result: List[dict] = []
+        ret = {}
+
+        # page.on(
+        #     "response", 
+        #     lambda res: asyncio.create_task(catch_response_and_store(res, result, "/comment/list/")),
+        # )
+
+        _ = await self.client.goto(f"/@{username}/video/{media_id}?lang=en&is_copy_url=1&is_from_webapp=v1", page=page, options={"waitUntil": "networkidle0"})
+        logger.debug(f"📭 Got {username} feed")
+
+        elem = await page.JJ('span[class*="event-delegate-mask"]')
+        print(elem)
+        if not elem:
+            print("video comment button not found")
+            return 
+        await elem[0].click()
+        # input("测试")
+        await asyncio.sleep(5)
+
+        pbar = tqdm(total=amount, desc=f"📈 Getting {username} {media_id} comments")
+        pbar.n = min(len(result), amount)
+        pbar.refresh()
+
+        attempts = 0
+        last_result = len(result)
+
+        while len(result) < amount:
+            logger.debug("🖱 Trying to scroll to last comment item")
+            try:
+                await page.evaluate(
+                    """
+                    document.querySelector('.comments > .comment-item:last-child')
+                        .scrollIntoView();
+                """,
+                )
+                # last_child_selector = ".video-feed-container > .lazyload-wrapper:last-child"
+            except pyppeteer.errors.ElementHandleError as e:
+                print(e)
+                # return result[:amount]
+                pass
+
+            content = await page.content()
+            with open("comments_html.html", "w", encoding="utf-8") as fout:
+                fout.write(content)
+
+            for e in pattern_comments.findall(content):
+                print(e)
+                # result.append(e)
+                if ret.get(e[0]):
+                    if e[2] in ret[e[0]][1]:
+                        continue
+                    else:
+                        result.append(e)
+                else:
+                    ret[e[0]] = [e[1], set()]
+                    ret[e[0]][1].add(e[2])
+                    result.append(e)
+
+            await page.waitFor(1_000)
+            
+            print(result)
+
+            pbar.n = min(len(result), amount)
+            pbar.refresh()
+
+            if last_result == len(result):
+                attempts += 1
+            else:
+                attempts = 0
+
+            if attempts > 5:
+                pbar.clear()
+                pbar.total = len(result)
+                logger.info(
+                    f"⚠️  After 10 attempts found {len(result)} videos. "
+                    f"Probably some videos are private",
+                )
+                break
+
+            last_result = len(result)
+
             await page.waitFor(30_000)
 
         await page.close()
