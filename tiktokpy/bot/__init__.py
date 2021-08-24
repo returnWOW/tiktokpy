@@ -78,6 +78,10 @@ class TikTokPy:
 
         return items
 
+    async def comment(self, username: str, media_id: int, content="nice") -> List:
+        logger.info("📈 Comment with media {media_id} content: {content}")
+        await User(client=self.client).comment(username, media_id, content=content, page=self.one_page)
+
     async def follow(self, username: str):
         username = f"@{username.lstrip('@')}"
         await User(client=self.client).follow(username=username, page=self.one_page)

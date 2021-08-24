@@ -4,6 +4,7 @@ from typing import List
 import pyppeteer
 from pyppeteer.page import Page
 from tqdm import tqdm
+import pdb
 
 from tiktokpy.client import Client
 from tiktokpy.utils.client import catch_response_and_store, catch_response_info
@@ -310,8 +311,8 @@ class User:
                 pass
 
             content = await page.content()
-            with open("comments_html.html", "w", encoding="utf-8") as fout:
-                fout.write(content)
+            # with open("comments_html.html", "w", encoding="utf-8") as fout:
+            #     fout.write(content)
 
             for e in pattern_comments.findall(content):
                 print(e)
@@ -354,3 +355,32 @@ class User:
         await page.close()
         pbar.close()
         return result[:amount]
+
+    async def comment(self, username: str, media_id: int, content: str, page=None):
+        self.client.delete_cache_files()
+        if not page:
+            page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
+        logger.debug(f"📨 Request {username} feed")
+
+        _ = await self.client.goto(f"/@{username}/video/{media_id}?lang=en&is_copy_url=1&is_from_webapp=v1", page=page, options={"waitUntil": "networkidle0"})
+        logger.debug(f"📭 Got {username} feed")
+
+        elem = await page.JJ('span[class*="event-delegate-mask"]')
+        print(elem)
+        if not elem:
+            print("video comment button not found")
+            return 
+        await elem[0].click()
+        # input("测试")
+        await asyncio.sleep(5)
+
+        comment_input = await page.J('div[class*="public-DraftStyleDefault-block"]')
+        print(comment_input)
+        await comment_input.click()
+        await page.keyboard.type(content)
+        await asyncio.sleep(3)
+
+
+        comment_submit = await page.J('div[class*="post-container"]')
+        print(comment_submit)
+        await comment_submit.click()
