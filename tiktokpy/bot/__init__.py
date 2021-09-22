@@ -20,7 +20,7 @@ from .version import __version__
 
 
 class TikTokPy:
-    def __init__(self, settings_path: Optional[str] = None, proxy: Optional[str] = "http://192.168.1.17:1080", username=None, pw=None):
+    def __init__(self, settings_path: Optional[str] = None, proxy: Optional[str] = "http://127.0.0.1:1080", username=None, pw=None):
         init_logger()
         self.started_at = datetime.now()
         self.client: Client
@@ -81,6 +81,15 @@ class TikTokPy:
     async def comment(self, username: str, media_id: int, content="nice") -> List:
         logger.info("📈 Comment with media {media_id} content: {content}")
         await User(client=self.client).comment(username, media_id, content=content, page=self.one_page)
+
+    async def message_to(self, username: str, message: str="Hello") -> List:
+        logger.info("📈 Comment with media {media_id} content: {content}")
+        await User(client=self.client).message(username, message, page=self.one_page)
+
+    async def upload_video(self,  video: str, title: str = "nice one", is_private: bool = False,) -> List:
+        logger.info("📈 Comment with media {media_id} content: {content}")
+        res = await User(client=self.client).upload_video( video, title = title, is_private = is_private, page=self.one_page)
+        return res
 
     async def follow(self, username: str):
         username = f"@{username.lstrip('@')}"

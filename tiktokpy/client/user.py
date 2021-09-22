@@ -1,3 +1,4 @@
+import os
 import asyncio
 from typing import List
 
@@ -5,6 +6,7 @@ import pyppeteer
 from pyppeteer.page import Page
 from tqdm import tqdm
 import pdb
+import time
 
 from tiktokpy.client import Client
 from tiktokpy.utils.client import catch_response_and_store, catch_response_info
@@ -384,3 +386,95 @@ class User:
         comment_submit = await page.J('div[class*="post-container"]')
         print(comment_submit)
         await comment_submit.click()
+
+    async def upload_video(self, video: str, title: str = "nice one", is_private: bool = False, page=None):
+        # self.client.delete_cache_files()
+        if not page:
+            page: Page = await self.client.new_page(blocked_resources=[])
+
+        if not os.path.exists(video):
+            logger.error("Video file not found: {}".format(video))
+            return False
+
+        video = os.path.abspath(video)
+        logger.debug("video file absolute path: {}".format(video))
+
+        _ = await self.client.goto(f"/upload?lang=en", page=page, options={"waitUntil": "networkidle0"}, timeout=60000)
+
+        time.sleep(10)
+        elem = await page.JJ('input[name="upload-btn"]')
+        print(elem)
+        if not elem:
+            print("video comment button not found")
+            return False
+
+        await elem[0].uploadFile(video)
+        # input("测试")
+        await asyncio.sleep(5)
+        # disable
+        # <button type="button" class="tiktok-btn-pc tiktok-btn-pc-large tiktok-btn-pc-primary tiktok-btn-pc-disabled">發佈</button>
+        # enable
+        # <button type="button" class="tiktok-btn-pc tiktok-btn-pc-large tiktok-btn-pc-primary">發佈</button>
+        while True:
+            button = await page.J('button[class*="tiktok-btn-pc-disabled"]')
+            print("submit button ", button)
+            if not button:
+                logger.debug("submit button is enabled")
+                break
+            else:
+                logger.debug("submit button is disabled")
+                time.sleep(2)
+
+        title_input = await page.J('div[class*="public-DraftStyleDefault-block"]')
+        print(title_input)
+        await title_input.click()
+        await page.keyboard.type(title)
+        await asyncio.sleep(3)
+
+        button = await page.J('button[class*="tiktok-btn-pc-primary"]')
+        print("submit: ", button)
+        await button.click()
+        await asyncio.sleep(3)
+
+        input("test")
+        return True
+
+    async def message(self, username, message, page=None):
+        if not page:
+            page: Page = await self.client.new_page(blocked_resources=["media"])
+
+        logger.info("Comment to: {username} message: {message}")
+        # https://www.tiktok.com/@karenmanlangit?lang=en
+        _ = await self.client.goto("/@{}?lang=en".format(username), page=page, options={"waitUntil": "networkidle0"}, timeout=60000)
+
+        follow_title: str = await page.Jeval(
+            ".follow-button",
+            pageFunction="element => element.textContent",
+        )
+
+        logger.debug("follow title: |{}|".format(follow_title))
+        if follow_title.lower() in ("follow", "关注", "關註", "關注"):
+            logger.info(f"😏 {username} not follow")
+            await page.click(".follow-button")
+            time.sleep(2)
+
+        await page.click(".message-button")
+        time.sleep(5)
+
+        while True:
+            try:
+                await page.click(".comment-input-inner-wrapper")
+                break
+            except pyppeteer.errors.PageError as e:
+                print(e)
+                time.sleep(2)
+                continue
+
+        time.sleep(1)
+        await page.keyboard.type(message)
+
+        time.sleep(2)
+        await page.click(".send-button")
+
+        input("test send message")
+        return 

@@ -8,9 +8,11 @@ async def block_resources_and_sentry(request, types: List[str]):
     is_blocked = False
 
     if request.resourceType in types:
+        logger.debug("blocked: {}".format(request.resourceType))
         is_blocked = True
 
     if "/sentry/" in request.url:
+        logger.debug("blocked: {}".format(request.url))
         is_blocked = True
 
     if is_blocked:

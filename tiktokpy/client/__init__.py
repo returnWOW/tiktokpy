@@ -57,9 +57,10 @@ class Client:
         params = {
             "headless": headless,
             "setDefaultViewport": {
-                "width": 1920,
-                "height": 1080,
+                "width": 1080,
+                "height": 1920,
             },
+            # 'devtools': True,
             "args": [
                 '--disable-extensions',
                 "--no-sandbox",
