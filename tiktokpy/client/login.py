@@ -13,7 +13,7 @@ class Login:
     def __init__(self, client) -> None:
         self.client: Client = client
 
-    async def manual_login(self, username, password):
+    async def manual_login(self, username, password, cookie_file=None):
         # client = await Client.create(headless=False)
         client: Client = self.client
         page = await client.new_page()
@@ -22,7 +22,7 @@ class Login:
 
         await client.goto("/login", page)
         # await page.waitForXPath('//div[contains(text(), "TikTok")]', options={"timeout": 0})
-        time.sleep(6)
+        time.sleep(10)
         flag = False
         try:
             print("检查登陆")
@@ -64,7 +64,7 @@ class Login:
                 logger.info(f"🔑 Logged as @{username}")
                 cookies = await page.cookies()
 
-                with open("{}_cookie.json".format(username), "w", encoding="utf-8") as fout:
+                with open(cookie_file, "w", encoding="utf-8") as fout:
                     json.dump(cookies, fout)
             except IndexError as e:
                 logger.error("可能已经登陆了：{}".format(e))

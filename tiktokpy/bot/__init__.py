@@ -20,7 +20,7 @@ from .version import __version__
 
 
 class TikTokPy:
-    def __init__(self, settings_path: Optional[str] = None, proxy: Optional[str] = "http://127.0.0.1:1080", username=None, pw=None):
+    def __init__(self, settings_path: Optional[str] = None, proxy: Optional[str] = "http://127.0.0.1:1080", username=None, pw=None, cookie_path="cookies"):
         init_logger()
         self.started_at = datetime.now()
         self.client: Client
@@ -28,6 +28,7 @@ class TikTokPy:
         self.username = username
         self.pw = pw
         self.userdata_dir = "userdata"
+        self.cookie_path = os.path.join(cookie_path, "{}_cookie.json".format(self.username))
 
         logger.info("🥳 TikTokPy initialized. Version: {}", __version__)
 
@@ -117,7 +118,7 @@ class TikTokPy:
             logger.error("Username or pw is none")
             return False
 
-        await Login(client=self.client).manual_login(self.username, self.pw)
+        await Login(client=self.client).manual_login(self.username, self.pw, cookie_file=self.cookie_path)
         return True
 
     async def user_feed(self, username: str, amount: int = 50) -> List[FeedItem]:
