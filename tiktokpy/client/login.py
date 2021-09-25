@@ -1,8 +1,8 @@
+import os
 import json
 
 import time
 from dynaconf import loaders, settings
-import pdb
 
 from tiktokpy.client import Client
 from tiktokpy.utils.logger import logger
@@ -63,6 +63,9 @@ class Login:
 
                 logger.info(f"🔑 Logged as @{username}")
                 cookies = await page.cookies()
+
+                if not cookie_file:
+                    cookie_file = os.path.join("cookies", "{}_cookie.json".format(username))
 
                 with open(cookie_file, "w", encoding="utf-8") as fout:
                     json.dump(cookies, fout)
