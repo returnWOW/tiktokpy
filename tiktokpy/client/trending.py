@@ -84,3 +84,85 @@ class Trending:
         await page.close()
         pbar.close()
         return result[:amount]
+
+    async def search(self, amount: int, lang: str = "en", page=None, kw="nike", dbSession=None, dbobj=None):
+        if not page:
+            page = await self.client.new_page(blocked_resources=["media", "image", "font"])
+
+        self.client.delete_cache_files()
+        # await page.setCacheEnabled(False)
+
+        logger.debug('📨 Request "Trending" page')
+
+        result: List[dict] = []
+        # list_queue: asyncio.Queue = asyncio.Queue(maxsize=100)
+
+        page.on(
+            "response",
+            lambda res: asyncio.create_task(catch_response_and_store(res, result, "/api/search/general/full"))
+        )
+
+        time.sleep(3)
+
+        # https://www.tiktok.com/search?q=nike&t=1632749856755
+        _ = await self.client.goto(
+            "/search",
+            query_params={"q": kw, "t": int(time.time() * 1000)},
+            page=page,
+        )
+        time.sleep(2)
+        logger.debug('📭 Got response from search page')
+
+        pbar = tqdm(total=amount, desc=f"📈 Getting trending {lang.upper()}")
+        pbar.n = min(len(result), amount)
+        pbar.refresh()
+
+        save_idx = 0
+
+        while len(result) < amount:
+            print("循环获取数据")
+            # time.sleep(1000)
+
+            logger.debug("🖱 Trying to scroll to last video item")
+
+            last_child_selector = 'div[class*="DivVideoFeed"]:last-child'
+            scroll_command = """
+                document.querySelector('{selector}')
+                    .scrollIntoView();
+                """
+            try:
+                await page.evaluate(scroll_command.format(selector=last_child_selector))
+            except pyppeteer.errors.ElementHandleError:
+                raise
+                # last_child_selector = ".video-feed-container > .lazyload-wrapper:last-child"
+                # await page.evaluate(scroll_command.format(selector=last_child_selector))
+
+            await page.waitFor(1_000)
+
+            elements = await page.JJ(".video-feed-item")
+            logger.debug(f"🔎 Found {len(elements)} items for clear")
+
+            pbar.n = min(len(result), amount)
+            pbar.refresh()
+
+            if len(elements) < 500:
+                logger.debug("🔻 Too less for clearing page")
+                continue
+
+
+            if len(result) > save_idx:
+                for i in range(save_idx, len(result)):
+                    pass
+
+            # await page.JJeval(
+            #     ".video-feed-container > .lazyload-wrapper:not(:last-child)",
+            #     pageFunction="(elements) => elements.forEach(el => el.remove())",
+            # )
+            # logger.debug(f"🎉 Cleaned {len(elements) - 1} items from page")
+            await page.waitFor(30_000)
+            elem = await page.JJ('span[class*="ButtonMore"]')
+            await elem.click()
+
+        await page.close()
+        pbar.close()
+        return result[:amount]
