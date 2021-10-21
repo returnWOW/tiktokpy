@@ -9,7 +9,7 @@ import pdb
 import time
 
 from tiktokpy.client import Client
-from tiktokpy.utils.client import catch_response_and_store, catch_response_info
+from tiktokpy.utils.client import catch_response_and_store, catch_response_info, get_dt_str
 from tiktokpy.utils.logger import logger
 
 import re
@@ -264,7 +264,8 @@ class User:
         pbar.close()
         return result[:amount]
 
-    async def get_comments(self, username: str, media_id: int, amount: int, page=None):
+    async def get_comments(self, username: str, media_id: int, amount: int, page=None, 
+                           dbSession=None, dbobj=None):
         self.client.delete_cache_files()
         if not page:
             page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
@@ -328,6 +329,13 @@ class User:
                     ret[e[0]] = [e[1], set()]
                     ret[e[0]][1].add(e[2])
                     result.append(e)
+
+                if dbSession:
+                    logger.debug("Save commenter: {}".format(e))
+                    obj = dbobj(PingLunZhe=e[0], PingLunNeiRong=e[2], GuanJianCi="", FaBuZhe=username, 
+                                TianJiaShiJian=get_dt_str(), ShiFouGuanZhu=False)
+                    dbSession.add(obj)
+                    dbSession.commit()
 
             await page.waitFor(1_000)
             
