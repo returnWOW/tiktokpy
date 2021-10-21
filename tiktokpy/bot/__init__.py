@@ -71,9 +71,9 @@ class TikTokPy:
 
         return _trending.__root__
 
-    async def search(self, amount: int = 50, lang: str = "en", kw="nike", dbSession=None, dbobj=None) -> List[FeedItem]:
+    async def search(self, amount: int = 50, lang: str = "en", kw="nike", dbSession=None, dbobj=None, kwdbobj=None) -> List[FeedItem]:
         logger.info("📈 Getting trending items")
-        items = await Trending(client=self.client).search(amount=amount, lang=lang, page=self.one_page, kw=kw, dbSession=dbSession, dbobj=dbobj)
+        items = await Trending(client=self.client).search(amount=amount, lang=lang, page=self.one_page, kw=kw, dbSession=dbSession, dbobj=dbobj, kwdbobj=kwdbobj)
 
         logger.info(f"📹 Found {len(items)} videos")
 

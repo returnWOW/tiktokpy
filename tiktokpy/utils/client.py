@@ -1,7 +1,56 @@
 from typing import List
 import json
+import datetime
 
 from tiktokpy.utils.logger import logger
+
+
+def get_dt_str():
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def check_num_and_alpha(chs):
+    for uchar in chs:
+        if not ((uchar >= u'\u0030' and uchar <= u'\u0039') 
+           or ((uchar >= u'\u0041' and uchar<=u'\u005a') 
+           or (uchar >= u'\u0061' and uchar<=u'\u007a'))):
+            return False
+        
+    return True
+
+
+def get_media_desc_tags(desc, logger=None):
+    tags = []
+    if logger: logger.debug("处理tag {}".format(desc))
+    
+    len_total = len(desc)
+    start_idx = 0
+    len_word = 0
+    start_sign = False
+
+    while start_idx < len_total:
+        if desc[start_idx] == "#" and not start_sign:
+            start_sign = True
+            start_idx += 1
+        elif start_sign:
+            len_word += 1
+            if start_idx + len_word > len_total - 1:
+                tags.append(desc[start_idx:].lower())
+                break
+
+            if desc[start_idx + len_word] in (" ", "\n", "#", "\xa0") or start_idx + len_word == len_word - 1:
+                if len_word < 100:
+                    # logger.debug(desc[start_idx: start_idx + len_word])
+                    tags.append(desc[start_idx: start_idx + len_word].lower())
+                start_idx += len_word
+                len_word = 0
+                start_sign = False
+        else:
+            start_idx += 1
+
+    logger.info("获取到搜索词：{}".format(len(tags)))
+    return tags
+
 
 
 async def block_resources_and_sentry(request, types: List[str]):
@@ -22,7 +71,7 @@ async def block_resources_and_sentry(request, types: List[str]):
 
 
 cnt = 0
-async def catch_response_and_store(res, list_queue, url_str="/item_list"):
+async def catch_response_and_store(res, list_queue, url_str="/item_list", key="itemList"):
     global cnt
     url = res.url
     if url_str in url:
@@ -35,7 +84,7 @@ async def catch_response_and_store(res, list_queue, url_str="/item_list"):
 
         # logger.debug("data_json: {}".format(data))
         cnt_elem = 0
-        for item in data["itemList"]:
+        for item in data[key]:
             cnt_elem += 1
             list_queue.append(item)
         print(f"🛒 Collected {len(data['items'])} items. Total: {cnt_elem}")
