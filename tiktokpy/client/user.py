@@ -1,6 +1,7 @@
 import os
 import asyncio
 from typing import List
+import traceback
 
 import pyppeteer
 from pyppeteer.page import Page
@@ -9,12 +10,14 @@ import pdb
 import time
 
 from tiktokpy.client import Client
-from tiktokpy.utils.client import catch_response_and_store, catch_response_info, get_dt_str
+from tiktokpy.utils.client import catch_response_and_store, catch_response_info, get_dt_str, trans_char
 from tiktokpy.utils.logger import logger
 
 import re
 
-pattern_comments = re.compile(r'<div .*? comment-content .*?"><a href="/@(.*?)\?.*?".*?username">(.*?)</span></a><p class=".*? comment-text"><span class=".*?">(.*?)</span>', re.S)
+pattern_comment_area = re.compile(r'comment-container">(.*?)comment-post-outside-container">', re.S)
+pattern_comments = re.compile(r'<div .*? comment-content .*?<a href="/@(.*?)\?.*?username">(.*?)</span></a><p .*? comment-text"><span class=".*?">(.*?)</span>', re.S)
+# pattern_comments = re.compile(r'<div .*? comment-content .*?<a href="/@(.*?)\?.*?".*?username">(.*?)</span></a><p class=".*? comment-text"><span class=".*?">(.*?)</span>', re.S)
 
 # <div .*? comment-content .*?"><a href="/@(.*?)\?.*?" .*?username">(.*?)</span></a><p class=".*? comment-text"><span class=".*?">(.*?)</span>
 
@@ -266,105 +269,122 @@ class User:
 
     async def get_comments(self, username: str, media_id: int, amount: int, page=None, 
                            dbSession=None, dbobj=None):
-        self.client.delete_cache_files()
-        if not page:
-            page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
-        logger.debug(f"📨 Request {username} feed")
 
-        result: List[dict] = []
-        ret = {}
+        try:
+            self.client.delete_cache_files()
+            if not page:
+                page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
+            logger.debug(f"📨 Request {username} feed")
 
-        # page.on(
-        #     "response", 
-        #     lambda res: asyncio.create_task(catch_response_and_store(res, result, "/comment/list/")),
-        # )
+            result: List[dict] = []
+            ret = {}
 
-        _ = await self.client.goto(f"/@{username}/video/{media_id}?lang=en&is_copy_url=1&is_from_webapp=v1", page=page, options={"waitUntil": "networkidle0"})
-        logger.debug(f"📭 Got {username} feed")
+            # page.on(
+            #     "response", 
+            #     lambda res: asyncio.create_task(catch_response_and_store(res, result, "/comment/list/")),
+            # )
 
-        elem = await page.JJ('span[class*="event-delegate-mask"]')
-        print(elem)
-        if not elem:
-            print("video comment button not found")
-            return 
-        await elem[0].click()
-        # input("测试")
-        await asyncio.sleep(5)
+            _ = await self.client.goto(f"/@{username}/video/{media_id}?lang=en&is_copy_url=1&is_from_webapp=v1", page=page, options={"waitUntil": "networkidle0"})
+            logger.debug(f"📭 Got {username} feed")
 
-        pbar = tqdm(total=amount, desc=f"📈 Getting {username} {media_id} comments")
-        pbar.n = min(len(result), amount)
-        pbar.refresh()
+            elem = await page.JJ('span[class*="event-delegate-mask"]')
+            print(elem)
+            if not elem:
+                print("video comment button not found")
+                return 
+            await elem[0].click()
+            # input("测试")
+            await asyncio.sleep(5)
 
-        attempts = 0
-        last_result = len(result)
-
-        while len(result) < amount:
-            logger.debug("🖱 Trying to scroll to last comment item")
-            try:
-                await page.evaluate(
-                    """
-                    document.querySelector('.comments > .comment-item:last-child')
-                        .scrollIntoView();
-                """,
-                )
-                # last_child_selector = ".video-feed-container > .lazyload-wrapper:last-child"
-            except pyppeteer.errors.ElementHandleError as e:
-                print(e)
-                # return result[:amount]
-                pass
-
-            content = await page.content()
-            # with open("comments_html.html", "w", encoding="utf-8") as fout:
-            #     fout.write(content)
-
-            for e in pattern_comments.findall(content):
-                print(e)
-                # result.append(e)
-                if ret.get(e[0]):
-                    if e[2] in ret[e[0]][1]:
-                        continue
-                    else:
-                        result.append(e)
-                else:
-                    ret[e[0]] = [e[1], set()]
-                    ret[e[0]][1].add(e[2])
-                    result.append(e)
-
-                if dbSession:
-                    logger.debug("Save commenter: {}".format(e))
-                    obj = dbobj(PingLunZhe=e[0], PingLunNeiRong=e[2], GuanJianCi="", FaBuZhe=username, 
-                                TianJiaShiJian=get_dt_str(), ShiFouGuanZhu=False)
-                    dbSession.add(obj)
-                    dbSession.commit()
-
-            await page.waitFor(1_000)
-            
-            print(result)
-
+            pbar = tqdm(total=amount, desc=f"📈 Getting {username} {media_id} comments")
             pbar.n = min(len(result), amount)
             pbar.refresh()
 
-            if last_result == len(result):
-                attempts += 1
-            else:
-                attempts = 0
-
-            if attempts > 5:
-                pbar.clear()
-                pbar.total = len(result)
-                logger.info(
-                    f"⚠️  After 10 attempts found {len(result)} videos. "
-                    f"Probably some videos are private",
-                )
-                break
-
+            attempts = 0
             last_result = len(result)
 
-            await page.waitFor(30_000)
+            while len(result) < amount:
+                logger.debug("🖱 Trying to scroll to last comment item")
+                try:
+                    await page.evaluate(
+                        """
+                        document.querySelector('.comments > .comment-item:last-child')
+                            .scrollIntoView();
+                    """,
+                    )
+                    # last_child_selector = ".video-feed-container > .lazyload-wrapper:last-child"
+                except pyppeteer.errors.ElementHandleError as e:
+                    print(e)
+                    # return result[:amount]
+                    pass
 
-        await page.close()
-        pbar.close()
-        return result[:amount]
+                logger.debug("get page source")
+                content = await page.content()
+                # with open("comments_html.html", "w", encoding="utf-8") as fout:
+                #     fout.write(content)
+                comment_area = pattern_comment_area.search(content)
+                if not comment_area:
+                    logger.error("comment area not found!!!")
+                    return []
+
+                logger.debug("parser page source: {}".format(len(content)))
+                for e in pattern_comments.findall(comment_area.group(1)):
+                    print(e)
+                    # result.append(e)
+                    if ret.get(e[0]):
+                        if e[2] in ret[e[0]][1]:
+                            continue
+                        else:
+                            result.append(e)
+                    else:
+                        ret[e[0]] = [e[1], set()]
+                        ret[e[0]][1].add(e[2])
+                        result.append(e)
+
+                    if dbSession:
+                        text = trans_char(e[2])
+                        if dbSession.query(dbobj).filter(dbobj.PingLunZhe==e[0], dbobj.PingLunNeiRong==text, dbobj.FaBuZhe==username).first():
+                            logger.debug("saved comment, skip")
+                            continue
+
+                        logger.debug("Save commenter: {} de emoji: {}".format(e, text))
+                        obj = dbobj(PingLunZhe=e[0], PingLunNeiRong=text, GuanJianCi="", FaBuZhe=username, 
+                                    TianJiaShiJian=get_dt_str(), ShiFouGuanZhu=False)
+                        dbSession.add(obj)
+                        dbSession.commit()
+
+                await page.waitFor(1_000)
+                
+                print(result)
+
+                pbar.n = min(len(result), amount)
+                pbar.refresh()
+
+                if last_result == len(result):
+                    attempts += 1
+                else:
+                    attempts = 0
+
+                if attempts > 5:
+                    pbar.clear()
+                    pbar.total = len(result)
+                    logger.info(
+                        f"⚠️  After 10 attempts found {len(result)} videos. "
+                        f"Probably some videos are private",
+                    )
+                    break
+
+                last_result = len(result)
+
+                await page.waitFor(30_000)
+
+            await page.close()
+            pbar.close()
+            return result[:amount]
+        except pyppeteer.errors.TimeoutError as e:
+            print(e)
+            logger.error(traceback.format_exc())
+            input("enter to exit")
 
     async def comment(self, username: str, media_id: int, content: str, page=None):
         self.client.delete_cache_files()

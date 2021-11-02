@@ -142,7 +142,7 @@ class Trending:
                     dbSession.add(obj)
                     dbSession.commit()
                     logger.debug("Add to db: {}".format(data))
-                    tags = get_media_desc_tags(data["desc"])
+                    tags = get_media_desc_tags(data["desc"], logger)
                     for tag in tags:
                         if check_num_and_alpha(tag):
                             if dbSession.query(kwdbobj).filter(kwdbobj.tagci==tag).first():
@@ -173,10 +173,16 @@ class Trending:
                 document.querySelector('{selector}')
                     .scrollIntoView();
                 """
-            try:
-                await page.evaluate(scroll_command.format(selector=last_child_selector))
-            except pyppeteer.errors.ElementHandleError:
-                raise
+            idx = 0
+            while idx <= 20:
+                try:
+                    await page.evaluate(scroll_command.format(selector=last_child_selector))
+                    break
+                except pyppeteer.errors.ElementHandleError:
+                    idx += 1
+                    time.sleep(1)
+                    print("click error: sleep and retry：{}".format(idx))
+                    continue
                 # last_child_selector = ".video-feed-container > .lazyload-wrapper:last-child"
                 # await page.evaluate(scroll_command.format(selector=last_child_selector))
 
@@ -196,6 +202,7 @@ class Trending:
             await page.waitFor(30_000)
             elem = await page.JJ('button[class*="ButtonMore"]')
             await elem[0].click()
+            # time.sleep(5)
 
         # save_data()
 

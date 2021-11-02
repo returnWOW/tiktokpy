@@ -1,8 +1,11 @@
 from typing import List
+import re
 import json
 import datetime
 
 from tiktokpy.utils.logger import logger
+
+import emoji
 
 
 def get_dt_str():
@@ -17,6 +20,18 @@ def check_num_and_alpha(chs):
             return False
         
     return True
+
+
+def trans_char(s):
+
+    s = emoji.demojize(s.replace("'", " ").replace("\n", " "))
+
+    s = re.sub(r"\\u.{4}", '', s.__repr__())
+
+    s = s.replace("'", " ").replace("\n", " ")
+
+    s.encode("utf-8", errors="ignore").decode("utf-8", errors="ignore")
+    return s
 
 
 def get_media_desc_tags(desc, logger=None):
