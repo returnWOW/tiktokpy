@@ -113,6 +113,13 @@ class TikTokPy:
             page=self.one_page
         )
 
+    async def like2(self, username, video_id):
+        await User(client=self.client).like(
+            username=username,
+            video_id=video_id,
+            page=self.one_page
+        )
+
     async def unlike(self, feed_item: FeedItem):
         await User(client=self.client).unlike(
             username=feed_item.author.username,

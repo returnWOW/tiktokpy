@@ -31,6 +31,7 @@ class User:
         if not page:
             page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
 
+        page.setDefaultNavigationTimeout(0)
         logger.debug(f"👥 Like video id {video_id} of @{username}")
 
         like_info_queue: asyncio.Queue = asyncio.Queue(maxsize=1)
@@ -50,21 +51,26 @@ class User:
             options={"waitUntil": "networkidle0"},
         )
 
-        like_selector = ".lazyload-wrapper:first-child .item-action-bar.vertical > .bar-item-wrapper:first-child"  # noqa: E501
-        is_liked = await page.J(f'{like_selector} svg[fill="none"]')
+        time.sleep(3)
 
-        if is_liked:
-            logger.info(f"😏 @{username}'s video {video_id} already liked")
-            return
+        # like_selector = ".lazyload-wrapper:first-child .item-action-bar.vertical > .bar-item-wrapper:first-child"  # noqa: E501
+        # is_liked = await page.J(f'{like_selector} svg[fill="none"]')
 
-        await page.click(like_selector)
+        # if is_liked:
+        #     logger.info(f"😏 @{username}'s video {video_id} already liked")
+        #     return
 
-        like_info = await like_info_queue.get()
+        click_button = await page.xpath('//span[@data-e2e="like-icon"]/..')
+        print(click_button)
+        click_button = click_button[0]
+        await click_button.click()
 
-        if like_info["status_code"] == 0:
-            logger.info(f"👍 @{username}'s video {video_id} liked")
-        else:
-            logger.warning(f"⚠️  @{username}'s video {video_id} probably not liked")
+        # like_info = await like_info_queue.get()
+
+        # if like_info["status_code"] == 0:
+        #     logger.info(f"👍 @{username}'s video {video_id} liked")
+        # else:
+        #     logger.warning(f"⚠️  @{username}'s video {video_id} probably not liked")
 
         await page.close()
 
@@ -114,6 +120,7 @@ class User:
 
         logger.debug(f"👥 Follow {username}")
 
+        page.setDefaultNavigationTimeout(0)
         # follow_info_queue: asyncio.Queue = asyncio.Queue(maxsize=10)
 
         # page.on(
@@ -131,17 +138,31 @@ class User:
             options={"waitUntil": "networkidle0"},
         )
 
-        follow_title: str = await page.Jeval(
-            ".follow-button",
-            pageFunction="element => element.textContent",
-        )
+        time.sleep(5)
+
+        # follow_title: str = await page.Jeval(
+        #     ".follow-button",
+        #     pageFunction="element => element.textContent",
+        # )
+        follow_button = await page.JJ('button[class*="FollowButton"]')
+        print(follow_button)
+        if not follow_button:
+            logger.error("button not found.")
+            return 
+            
+        follow_button = follow_button[0]
+        print(dir(follow_button))
+
+        follow_title = await page.evaluate('item => item.textContent', follow_button)
+        print(follow_title)
 
         logger.debug("follow title: |{}|".format(follow_title))
         if follow_title.lower() not in ("follow", "关注", "關註", "關注"):
             logger.info(f"😏 {username} already followed")
             return
 
-        await page.click(".follow-button")
+        # await page.click(".follow-button")
+        await follow_button.click()
 
         # follow_info = await follow_info_queue.get()
 
@@ -210,6 +231,8 @@ class User:
         _ = await self.client.goto(f"/{username}", page=page, options={"waitUntil": "networkidle0"})
         logger.debug(f"📭 Got {username} feed")
 
+        time.sleep(5)
+
         await page.waitForSelector(".video-feed-item", options={"visible": True})
 
         pbar = tqdm(total=amount, desc=f"📈 Getting {username} feed")
@@ -276,6 +299,7 @@ class User:
                 page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
             logger.debug(f"📨 Request {username} feed")
 
+            page.setDefaultNavigationTimeout(0)
             result: List[dict] = []
             ret = {}
 
@@ -392,6 +416,8 @@ class User:
             page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
         logger.debug(f"📨 Request {username} feed")
 
+        page.setDefaultNavigationTimeout(0)
+
         _ = await self.client.goto(f"/@{username}/video/{media_id}?lang=en&is_copy_url=1&is_from_webapp=v1", page=page, options={"waitUntil": "networkidle0"})
         logger.debug(f"📭 Got {username} feed")
 
@@ -420,6 +446,7 @@ class User:
         if not page:
             page: Page = await self.client.new_page(blocked_resources=[])
 
+        page.setDefaultNavigationTimeout(0)
         if not os.path.exists(video):
             logger.error("Video file not found: {}".format(video))
             return False
@@ -464,13 +491,13 @@ class User:
         await button.click()
         await asyncio.sleep(3)
 
-        input("test")
         return True
 
     async def message(self, username, message, page=None):
         if not page:
             page: Page = await self.client.new_page(blocked_resources=["media"])
 
+        page.setDefaultNavigationTimeout(0)
         logger.info("Comment to: {username} message: {message}")
         # https://www.tiktok.com/@karenmanlangit?lang=en
         _ = await self.client.goto("/@{}?lang=en".format(username), page=page, options={"waitUntil": "networkidle0"}, timeout=60000)
@@ -503,6 +530,5 @@ class User:
 
         time.sleep(2)
         await page.click(".send-button")
-
-        input("test send message")
+        
         return 

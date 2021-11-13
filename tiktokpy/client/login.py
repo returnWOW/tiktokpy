@@ -22,18 +22,32 @@ class Login:
 
         await client.goto("/login", page)
         # await page.waitForXPath('//div[contains(text(), "TikTok")]', options={"timeout": 0})
-        time.sleep(10)
+        time.sleep(3)
         flag = False
-        try:
-            print("检查登陆")
-            await page.xpath('//input[@autocomplete="reg_email__"]')
-            print("未登录")
-            flag = True
-        except Exception as e:
-            logger.debug(e)
-            flag = False 
+        idx = 0
+        while True:
+            try:
+                idx += 1
+                print("检查登陆")
+                elem = await page.xpath('//input[@autocomplete="reg_email__"]')
+                print(elem)
+                if not elem:
+                    flag = False
+                    break
 
-        time.sleep(5)
+                print("未登录")
+                if idx <= 10:
+                    time.sleep(2)
+                    print("重新检查")
+                    continue
+                else:
+                    break
+                flag = True
+            except Exception as e:
+                logger.debug(e)
+                flag = False 
+
+        time.sleep(3)
 
         if flag:
             try:
@@ -75,8 +89,8 @@ class Login:
             print("也许已经登陆，无需重复登陆")
             cookies = await page.cookies()
 
-        print(cookies)
-        logger.debug(cookies)
+        # print(cookies)
+        # logger.debug(cookies)
         loaders.write(
             f"{settings.HOME_DIR}/settings.toml",
             {**BASE_SETTINGS, **{"COOKIES": json.dumps(cookies), "USERNAME": username}},

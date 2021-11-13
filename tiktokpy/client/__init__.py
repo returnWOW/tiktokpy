@@ -62,6 +62,7 @@ class Client:
             },
             # 'devtools': True,
             "args": [
+                '--disable-infobars',
                 '--disable-extensions',
                 "--no-sandbox",
                 '--mute-audio',
