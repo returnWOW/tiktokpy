@@ -104,8 +104,10 @@ async def catch_response_and_store(res, list_queue, url_str="/item_list", key="i
             list_queue.append(item)
         print(f"🛒 Collected {len(data['items'])} items. Total: {cnt_elem}")
     else:
-        # print("other url: {}".format(url))\
+        # print("other url: {}".format(url))
         pass
+
+    await res.continue_()
 
 
 async def catch_response_info(response, queue, url: str):

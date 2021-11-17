@@ -19,6 +19,9 @@ pattern_comment_area = re.compile(r'comment-container">(.*?)comment-post-outside
 pattern_comments = re.compile(r'<div .*? comment-content .*?<a href="/@(.*?)\?.*?username">(.*?)</span></a><p .*? comment-text"><span class=".*?">(.*?)</span>', re.S)
 # pattern_comments = re.compile(r'<div .*? comment-content .*?<a href="/@(.*?)\?.*?".*?username">(.*?)</span></a><p class=".*? comment-text"><span class=".*?">(.*?)</span>', re.S)
 
+# user post rex
+pattern_user_post_id = re.compile(r'data-e2e="user-post-item".*?<a href="http.*?/@.*?/video/(\d+)', re.S)
+
 # <div .*? comment-content .*?"><a href="/@(.*?)\?.*?" .*?username">(.*?)</span></a><p class=".*? comment-text"><span class=".*?">(.*?)</span>
 
 
@@ -63,15 +66,15 @@ class User:
         click_button = await page.xpath('//span[@data-e2e="like-icon"]/..')
         print(click_button)
         click_button = click_button[0]
+        await asyncio.sleep(2)
         await click_button.click()
 
         # like_info = await like_info_queue.get()
 
         # if like_info["status_code"] == 0:
-        #     logger.info(f"👍 @{username}'s video {video_id} liked")
         # else:
-        #     logger.warning(f"⚠️  @{username}'s video {video_id} probably not liked")
-
+            # logger.warning(f"⚠️  @{username}'s video {video_id} probably not liked")
+        logger.info(f"👍 @{username}'s video {video_id} liked")
         await page.close()
 
     async def unlike(self, username: str, video_id: str):
@@ -233,7 +236,7 @@ class User:
 
         time.sleep(5)
 
-        await page.waitForSelector(".video-feed-item", options={"visible": True})
+        # await page.waitForSelector(".video-feed-item", options={"visible": True})
 
         pbar = tqdm(total=amount, desc=f"📈 Getting {username} feed")
         pbar.n = min(len(result), amount)
@@ -244,51 +247,102 @@ class User:
 
         while len(result) < amount:
             logger.debug("🖱 Trying to scroll to last video item")
-            await page.evaluate(
-                """
-                document.querySelector('.video-feed-item:last-child')
-                    .scrollIntoView();
-            """,
-            )
+            # await page.evaluate(
+            #     """
+            #     document.querySelector('.video-feed-item:last-child')
+            #         .scrollIntoView();
+            # """,
+            # )
             
-            await page.waitFor(1_000)
+            # await page.waitFor(1_000)
 
-            elements = await page.JJ(".video-feed-item")
-            logger.debug(f"🔎 Found {len(elements)} items for clear")
+            # elements = await page.JJ(".video-feed-item")
+            # logger.debug(f"🔎 Found {len(elements)} items for clear")
 
-            pbar.n = min(len(result), amount)
-            pbar.refresh()
+            # pbar.n = min(len(result), amount)
+            # pbar.refresh()
 
-            if last_result == len(result):
-                attempts += 1
-            else:
-                attempts = 0
+            # if last_result == len(result):
+            #     attempts += 1
+            # else:
+            #     attempts = 0
 
-            if attempts > 10:
-                pbar.clear()
-                pbar.total = len(result)
-                logger.info(
-                    f"⚠️  After 10 attempts found {len(result)} videos. "
-                    f"Probably some videos are private",
-                )
-                break
+            # if attempts > 10:
+            #     pbar.clear()
+            #     pbar.total = len(result)
+            #     logger.info(
+            #         f"⚠️  After 10 attempts found {len(result)} videos. "
+            #         f"Probably some videos are private",
+            #     )
+            #     break
 
-            last_result = len(result)
+            # last_result = len(result)
 
-            if len(elements) < 500:
-                logger.debug("🔻 Too less for clearing page")
-                continue
+            # if len(elements) < 500:
+            #     logger.debug("🔻 Too less for clearing page")
+            #     continue
 
-            await page.JJeval(
-                ".video-feed-item:not(:last-child)",
-                pageFunction="(elements) => elements.forEach(el => el.remove())",
-            )
-            logger.debug(f"🎉 Cleaned {len(elements) - 1} items from page")
+            # await page.JJeval(
+            #     ".video-feed-item:not(:last-child)",
+            #     pageFunction="(elements) => elements.forEach(el => el.remove())",
+            # )
+            # logger.debug(f"🎉 Cleaned {len(elements) - 1} items from page")
+            logger.debug("wait for video")
             await page.waitFor(30_000)
 
         await page.close()
         pbar.close()
         return result[:amount]
+
+    async def feed2(self, username: str, amount: int, page=None):
+        if not page:
+            page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
+
+        logger.debug(f"📨 Request {username} feed")
+
+        result: List[dict] = []
+
+        # page.on(
+        #     "response",
+        #     lambda res: asyncio.create_task(catch_response_and_store(res, result, "/post/item_list/")),
+        # )
+
+        _ = await self.client.goto(f"/{username}", page=page, options={"waitUntil": "networkidle0"})
+        logger.debug(f"📭 Got {username} feed")
+
+        time.sleep(5)
+
+        # await page.waitForSelector(".video-feed-item", options={"visible": True})
+
+        pbar = tqdm(total=amount, desc=f"📈 Getting {username} feed")
+        pbar.n = min(len(result), amount)
+        pbar.refresh()
+
+        attempts = 0
+        last_result = len(result)
+
+        idx = 0
+
+        while len(result) < amount:
+            logger.debug("🖱 Trying to scroll to last video item")
+            idx += 1
+
+            text = await page.content()
+            elems = pattern_user_post_id.findall(text)
+            if elems:
+                for elem in elems:
+                    print(elem)
+                    result.append(elem)
+
+            print("aproche")
+            return result
+
+            logger.debug("wait for video")
+            await page.waitFor(30_000)
+
+        await page.close()
+        pbar.close()
+        return result
 
     async def get_comments(self, username: str, media_id: int, amount: int, page=None, 
                            dbSession=None, dbobj=None):
@@ -421,25 +475,32 @@ class User:
         _ = await self.client.goto(f"/@{username}/video/{media_id}?lang=en&is_copy_url=1&is_from_webapp=v1", page=page, options={"waitUntil": "networkidle0"})
         logger.debug(f"📭 Got {username} feed")
 
-        elem = await page.JJ('span[class*="event-delegate-mask"]')
+        # elem = await page.JJ('span[class*="event-delegate-mask"]')
+        elem = await page.xpath('//span[@data-e2e="comment-icon"]')
         print(elem)
         if not elem:
             print("video comment button not found")
-            return 
+            return False
         await elem[0].click()
         # input("测试")
         await asyncio.sleep(5)
 
-        comment_input = await page.J('div[class*="public-DraftStyleDefault-block"]')
+        comment_input = await page.J('div[class*="DivCommentContainer"]')
         print(comment_input)
         await comment_input.click()
         await page.keyboard.type(content)
         await asyncio.sleep(3)
 
+        post = await page.xpath('//div[contains(text(), "Post")]')
+        print(post)
+        await post[0].click()
 
-        comment_submit = await page.J('div[class*="post-container"]')
-        print(comment_submit)
-        await comment_submit.click()
+        await asyncio.sleep(3)
+        await page.close()
+
+        # comment_submit = await page.J('div[class*="post-container"]')
+        # print(comment_submit)
+        # await comment_submit.click()
 
     async def upload_video(self, video: str, title: str = "nice one", is_private: bool = False, page=None):
         # self.client.delete_cache_files()

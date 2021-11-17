@@ -148,6 +148,14 @@ class TikTokPy:
 
         return feed.__root__
 
+    async def user_feed2(self, username: str, amount: int = 50):
+        username = f"@{username.lstrip('@')}"
+        logger.info(f"📈 Getting {username} feed")
+        items = await User(client=self.client).feed2(username=username, amount=amount, page=self.one_page)
+
+        return items
+
+
     async def init_bot(self):
         if not os.path.exists(self.userdata_dir):
             os.mkdir(self.userdata_dir)
