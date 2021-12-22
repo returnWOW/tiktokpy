@@ -28,17 +28,17 @@ class Login:
         while True:
             try:
                 idx += 1
-                print("检查登陆")
+                print("check for login")
                 elem = await page.xpath('//input[@autocomplete="reg_email__"]')
                 print(elem)
                 if not elem:
                     flag = False
                     break
 
-                print("未登录")
+                print("not login")
                 if idx <= 10:
                     time.sleep(2)
-                    print("重新检查")
+                    print("recheck")
                     continue
                 else:
                     break
@@ -51,7 +51,7 @@ class Login:
 
         if flag:
             try:
-                print("点击电话按钮")
+                print("click phone button")
                 use_phone = await page.Jx('//div[contains(text(), "使用者")]')
                 await use_phone[0].click()
 
@@ -73,7 +73,7 @@ class Login:
                 await input_pw[0].click()
                 await page.keyboard.type(password)
 
-                input("点击登陆")
+                input("Enter for confirm")
 
                 logger.info(f"🔑 Logged as @{username}")
                 cookies = await page.cookies()
@@ -84,9 +84,9 @@ class Login:
                 with open(cookie_file, "w", encoding="utf-8") as fout:
                     json.dump(cookies, fout)
             except IndexError as e:
-                logger.error("可能已经登陆了：{}".format(e))
+                logger.error("already login：{}".format(e))
         else:
-            print("也许已经登陆，无需重复登陆")
+            print("already login, no need relogin")
             cookies = await page.cookies()
 
         # print(cookies)
