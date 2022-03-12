@@ -1,4 +1,5 @@
-import os
+import asyncio
+import logging
 import typing
 from datetime import datetime
 from types import TracebackType
@@ -7,8 +8,8 @@ from typing import List, Optional
 import humanize
 from dynaconf import settings
 
+from tiktokpy.bot.decorators import login_required
 from tiktokpy.client import Client
-from tiktokpy.client import user
 from tiktokpy.client.login import Login
 from tiktokpy.client.trending import Trending
 from tiktokpy.client.user import User
@@ -20,25 +21,23 @@ from .version import __version__
 
 
 class TikTokPy:
-    def __init__(self, settings_path: Optional[str] = None, proxy: Optional[str] = "http://127.0.0.1:1080", username=None, pw=None, cookie_path="cookies"):
-        init_logger()
+    def __init__(self, settings_path: Optional[str] = None):
+        init_logger(logging.INFO)
         self.started_at = datetime.now()
         self.client: Client
-        self.proxy = proxy
-        self.username = username
-        self.pw = pw
-        self.userdata_dir = "userdata"
-        self.cookie_path = os.path.join(cookie_path, "{}_cookie.json".format(self.username))
+        self.is_logged_in = False
 
         logger.info("🥳 TikTokPy initialized. Version: {}", __version__)
 
         load_or_create_settings(path=settings_path)
-        self.one_page = None
 
         if settings.get("COOKIES") and settings.get("USERNAME"):
             logger.info(f"✅ Used cookies of @{settings.USERNAME}")
+            self.is_logged_in = True
         else:
             logger.info("🛑 Cookies not found, anonymous mode")
+
+        self.headless: bool = settings.get("HEADLESS", True)
 
     async def __aenter__(self):
         await self.init_bot()
@@ -53,9 +52,17 @@ class TikTokPy:
     ) -> None:
         logger.debug("🤔Trying to close browser..")
 
-        await self.client.browser.close()
+        if exc_type and exc_value:
+            logger.debug(f"🐛 Found exception. Type: {exc_type}")
 
-        logger.debug("✋ Browser successfully closed")
+        try:
+            await asyncio.wait_for(self.client.browser.close(), timeout=10.0)
+            await asyncio.wait_for(self.client.playwright.stop(), timeout=5.0)
+        except asyncio.TimeoutError:
+            logger.debug("🐛 Timeout reached while closing browser")
+        else:
+            logger.debug("✋ Browser successfully closed")
+
         logger.info(
             "✋ TikTokPy finished working. Session lasted: {}",
             humanize.naturaldelta(datetime.now() - self.started_at),
@@ -63,107 +70,57 @@ class TikTokPy:
 
     async def trending(self, amount: int = 50, lang: str = "en") -> List[FeedItem]:
         logger.info("📈 Getting trending items")
-        items = await Trending(client=self.client).feed(amount=amount, lang=lang, page=self.one_page)
+
+        if amount <= 0:
+            logger.warning("⚠️ Wrong amount! Return nothing")
+            return []
+
+        items = await Trending(client=self.client).feed(amount=amount, lang=lang)
 
         logger.info(f"📹 Found {len(items)} videos")
-        # print()
         _trending = FeedItems(__root__=items)
 
         return _trending.__root__
 
-    async def search(self, amount: int = 50, lang: str = "en", kw="nike", dbSession=None, dbobj=None, kwdbobj=None) -> List[FeedItem]:
-        logger.info("📈 Getting trending items")
-        items = await Trending(client=self.client).search(amount=amount, lang=lang, page=self.one_page, kw=kw, 
-                                                          dbSession=dbSession, dbobj=dbobj, kwdbobj=kwdbobj)
-
-        logger.info(f"📹 Found {len(items)} videos")
-
-        return items
-
-    async def get_comments(self, username: str, media_id: int, amount: int = 50, dbSession=None, dbobj=None) -> List:
-        logger.info("📈 Getting media {media_id} comments items")
-        items = await User(client=self.client).get_comments(username, media_id, amount=amount, page=self.one_page,
-                                                            dbSession=dbSession, dbobj=dbobj)
-
-        logger.info(f"📹 Found {len(items)} comments")
-
-        return items
-
-    async def comment(self, username: str, media_id: int, content="nice") -> List:
-        logger.info("📈 Comment with media {media_id} content: {content}")
-        await User(client=self.client).comment(username, media_id, content=content, page=self.one_page)
-
-    async def message_to(self, username: str, message: str="Hello") -> List:
-        logger.info("📈 Comment with media {media_id} content: {content}")
-        await User(client=self.client).message(username, message, page=self.one_page)
-
-    async def upload_video(self,  video: str, title: str = "nice one", is_private: bool = False,) -> List:
-        logger.info("📈 Comment with media {media_id} content: {content}")
-        res = await User(client=self.client).upload_video( video, title = title, is_private = is_private, page=self.one_page)
-        return res
-
+    @login_required()
     async def follow(self, username: str):
         username = f"@{username.lstrip('@')}"
-        await User(client=self.client).follow(username=username, page=self.one_page)
+        await User(client=self.client).follow(username=username)
 
+    @login_required()
     async def like(self, feed_item: FeedItem):
         await User(client=self.client).like(
             username=feed_item.author.username,
             video_id=feed_item.id,
-            page=self.one_page
         )
 
-    async def like2(self, username, video_id):
-        await User(client=self.client).like(
-            username=username,
-            video_id=video_id,
-            page=self.one_page
-        )
-
+    @login_required()
     async def unlike(self, feed_item: FeedItem):
         await User(client=self.client).unlike(
             username=feed_item.author.username,
             video_id=feed_item.id,
         )
 
+    @login_required()
     async def unfollow(self, username: str):
         username = f"@{username.lstrip('@')}"
         await User(client=self.client).unfollow(username=username)
 
     async def login_session(self):
-        if not self.username or not self.pw:
-            logger.error("Username or pw is none")
-            return False
-
-        await Login(client=self.client).manual_login(self.username, self.pw, cookie_file=self.cookie_path)
-        return True
+        await Login().manual_login()
 
     async def user_feed(self, username: str, amount: int = 50) -> List[FeedItem]:
         username = f"@{username.lstrip('@')}"
         logger.info(f"📈 Getting {username} feed")
-        items = await User(client=self.client).feed(username=username, amount=amount, page=self.one_page)
+        items = await User(client=self.client).feed(username=username, amount=amount)
 
         logger.info(f"📹 Found {len(items)} videos")
         feed = FeedItems(__root__=items)
 
         return feed.__root__
 
-    async def user_feed2(self, username: str, amount: int = 50):
-        username = f"@{username.lstrip('@')}"
-        logger.info(f"📈 Getting {username} feed")
-        items = await User(client=self.client).feed2(username=username, amount=amount, page=self.one_page)
-
-        return items
-
-
     async def init_bot(self):
-        if not os.path.exists(self.userdata_dir):
-            os.mkdir(self.userdata_dir)
-            
-        userdata_dir = os.path.join(self.userdata_dir, self.username)
-        self.client: Client = await Client.create(headless=False, proxy=self.proxy, userdata=userdata_dir)
-        # if not self.one_page:
-            # self.one_page = await self.client.new_page(blocked_resources=["media", "image", "font"])
+        self.client: Client = await Client.create(headless=self.headless)
 
     @classmethod
     async def create(cls):

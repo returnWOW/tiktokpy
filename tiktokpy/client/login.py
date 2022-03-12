@@ -18,81 +18,37 @@ class Login:
         client: Client = self.client
         page = await client.new_page()
 
-        # await client.stealth(page)
-
         await client.goto("/login", page)
-        # await page.waitForXPath('//div[contains(text(), "TikTok")]', options={"timeout": 0})
-        time.sleep(3)
-        flag = False
-        idx = 0
-        while True:
-            try:
-                idx += 1
-                print("check for login")
-                elem = await page.xpath('//input[@autocomplete="reg_email__"]')
-                print(elem)
-                if not elem:
-                    flag = False
-                    break
+        await page.wait_for_selector('div[data-e2e="profile-icon"]', timeout=0)
 
-                print("not login")
-                if idx <= 10:
-                    time.sleep(2)
-                    print("recheck")
-                    continue
-                else:
-                    break
-                flag = True
-            except Exception as e:
-                logger.debug(e)
-                flag = False 
+        username = sub_title = None
 
-        time.sleep(3)
+        while not all((username, sub_title)):
+            await page.hover('div[data-e2e="profile-icon"]')
 
-        if flag:
-            try:
-                print("click phone button")
-                use_phone = await page.Jx('//div[contains(text(), "使用者")]')
-                await use_phone[0].click()
+            await page.wait_for_selector('ul[data-e2e="profile-popup"] > li:first-child')
+            # going to "View profile" page
+            await page.click('ul[data-e2e="profile-popup"] > li:first-child')
 
-                time.sleep(1)
+            await page.wait_for_selector('h2[data-e2e="user-title"]', timeout=0)
 
-                use_pw = await page.Jx('//a[contains(text(), "使用密")]')
-                print(use_pw)
-                await use_pw[0].click()
+            username = await page.eval_on_selector(
+                'h2[data-e2e="user-title"]',
+                expression="element => element.textContent",
+            )
+            username = username.strip()
 
-                time.sleep(1)
+            sub_title = await page.eval_on_selector(
+                'h1[data-e2e="user-subtitle"]',
+                expression="element => element.textContent",
+            )
 
-                # await page.type('//input[@autocomplete="reg_email__"]', username, {'delay': 5})
-                input_uname = await page.Jx('//input[@autocomplete="reg_email__"]')
-                await input_uname[0].click()
-                await page.keyboard.type(username)
-
-                time.sleep(1)
-                input_pw = await page.Jx('//input[@type="password"]')
-                await input_pw[0].click()
-                await page.keyboard.type(password)
-
-                input("Enter for confirm")
-
-                logger.info(f"🔑 Logged as @{username}")
-                cookies = await page.cookies()
-
-                if not cookie_file:
-                    cookie_file = os.path.join("cookies", "{}_cookie.json".format(username))
-
-                with open(cookie_file, "w", encoding="utf-8") as fout:
-                    json.dump(cookies, fout)
-            except IndexError as e:
-                logger.error("already login：{}".format(e))
-        else:
-            print("already login, no need relogin")
-            cookies = await page.cookies()
+        cookies = await client.context.cookies()
 
         # print(cookies)
         # logger.debug(cookies)
         loaders.write(
-            f"{settings.HOME_DIR}/settings.toml",
+            f"{settings.HOME_DIR}/settings_test.toml",
             {**BASE_SETTINGS, **{"COOKIES": json.dumps(cookies), "USERNAME": username}},
             env="default",
         )
