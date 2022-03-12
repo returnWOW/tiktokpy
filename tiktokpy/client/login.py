@@ -17,7 +17,6 @@ class Login:
         # client = await Client.create(headless=False)
         client: Client = self.client
         page = await client.new_page()
-
         await client.goto("/login", page)
         await page.wait_for_selector('div[data-e2e="profile-icon"]', timeout=0)
 
@@ -45,6 +44,12 @@ class Login:
 
         cookies = await client.context.cookies()
 
+        sub_title = await page.eval_on_selector(
+            'h1[data-e2e="user-subtitle"]',
+            expression="element => element.textContent",
+        )
+            
+        cookies = await client.context.cookies()
         # print(cookies)
         # logger.debug(cookies)
         loaders.write(
