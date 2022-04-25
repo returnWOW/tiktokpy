@@ -1,4 +1,5 @@
 import asyncio
+import os
 import json
 from pathlib import Path
 from typing import List, Optional
@@ -104,3 +105,32 @@ class Client:
         await self.init_browser(headless=headless)
 
         return self
+
+    @classmethod
+    async def create2(cls, headless: bool = True, proxy: dict={}, uname=""):
+        self = Client()
+        await self.init_browser2(headless=headless, proxy=proxy, uname=uname)
+
+        return self
+    
+    async def init_browser2(self, headless: bool, proxy: dict={}, uname=""):
+        self.playwright = await PlaywrightContextManager().start()
+
+        params = {
+            "headless": headless,
+            "traces_dir": os.path.join('.', 'userdata', uname),
+            "args": [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-web-security",
+                "--disable-notifications",
+            ],
+        }
+        if proxy:
+            params.update(proxy)
+
+        self.browser: Browser = await self.playwright.chromium.launch(**params)
+        self.context = await self.browser.new_context(locale='en-GB')
+        await self.context.add_cookies(self.cookies)
+        logger.debug(f"🎉 Browser launched. Options: {params}")

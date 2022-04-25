@@ -298,3 +298,38 @@ class User:
             await page.wait_for_timeout(5_000)
 
         pbar.close()
+
+    async def comment(self, username: str, media_id: int, content: str, page=None):
+        if not page:
+            page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
+        logger.debug(f"📨 Request {username} feed")
+
+        # page.setDefaultNavigationTimeout(0)
+
+        _ = await self.client.goto(f"/@{username}/video/{media_id}?lang=en&is_copy_url=1&is_from_webapp=v1", page=page, wait_until="networkidle")
+        logger.debug(f"📭 Got {username} feed")
+
+        # elem = await page.JJ('span[class*="event-delegate-mask"]')
+        elem = page.locator('xpath=//span[@data-e2e="comment-icon"]')
+        print(elem, await elem.count())
+        if not elem:
+            print("video comment button not found")
+            return False
+        # elem.
+        await elem.first.click()
+        
+        # input("测试")
+        await asyncio.sleep(5)
+
+        comment_input = page.locator('div[class*="DivCommentContainer"]')
+        print(comment_input)
+        await comment_input.click()
+        await page.keyboard.type(content)
+        await asyncio.sleep(3)
+
+        post = page.locator('xpath=//div[contains(text(), "Post")]')
+        print(post)
+        await post.click()
+
+        await asyncio.sleep(3)
+        await page.close()

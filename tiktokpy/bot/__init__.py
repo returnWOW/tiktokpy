@@ -21,11 +21,14 @@ from .version import __version__
 
 
 class TikTokPy:
-    def __init__(self, settings_path: Optional[str] = None):
+    def __init__(self, settings_path: Optional[str] = None, headless: Optional[bool]=False, proxies: Optional[dict]=None, username="", pw=""):
         init_logger(logging.INFO)
         self.started_at = datetime.now()
         self.client: Client
         self.is_logged_in = False
+        self.proxies = proxies
+        self.username = username
+        self.pw = pw
 
         logger.info("🥳 TikTokPy initialized. Version: {}", __version__)
 
@@ -38,6 +41,7 @@ class TikTokPy:
             logger.info("🛑 Cookies not found, anonymous mode")
 
         self.headless: bool = settings.get("HEADLESS", True)
+        self.headless = headless
 
     async def __aenter__(self):
         await self.init_bot()
@@ -120,7 +124,7 @@ class TikTokPy:
         return feed.__root__
 
     async def init_bot(self):
-        self.client: Client = await Client.create(headless=self.headless)
+        self.client: Client = await Client.create2(headless=self.headless, proxy=self.proxies, uname=self.username)
 
     @classmethod
     async def create(cls):
@@ -136,3 +140,11 @@ class TikTokPy:
             path=f"{settings.HOME_DIR}/screenshots/{filename}.png",
             page=page,
         )
+
+    async def login_session2(self):
+        await Login(self.client).manual_login2(self.username, self.pw)
+        self.is_logged_in = True
+
+    async def comment(self, username: str, media_id: int, content="nice") -> List:
+        logger.info("📈 Comment with media {media_id} content: {content}")
+        await User(client=self.client).comment(username, media_id, content=content)
