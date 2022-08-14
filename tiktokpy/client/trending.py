@@ -3,6 +3,7 @@ import random
 from typing import List
 
 from tqdm import tqdm
+from dynaconf import settings
 
 from tiktokpy.client import Client
 from tiktokpy.utils.client import catch_response_and_store
